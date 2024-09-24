@@ -4,58 +4,6 @@ const viewports = {
   mobile: { width: 375, height: 667 },
 };
 
-// Function to connect to Chrome DevTools Protocol (CDP)
-function applyThrottling(tabId, callback) {
-    if (!tabId) {
-        console.error("Error: tabId is invalid.");
-        return;
-    }
-
-    // Attach debugger
-    chrome.debugger.attach({tabId}, '1.3', () => {
-        if (chrome.runtime.lastError) {
-            console.error("Error attaching debugger:", chrome.runtime.lastError.message);
-            return;
-        }
-
-        console.log("Debugger attached successfully.");
-
-        // Apply CPU throttling (6x slower)
-        chrome.debugger.sendCommand({tabId}, 'Emulation.setCPUThrottlingRate', { rate: 6 }, () => {
-            if (chrome.runtime.lastError) {
-                console.error("Error setting CPU throttling:", chrome.runtime.lastError.message);
-                return;
-            }
-
-            // Apply Network Throttling (Good 3G simulation)
-            chrome.debugger.sendCommand({tabId}, 'Network.emulateNetworkConditions', {
-                offline: false,
-                latency: 400, // 400ms of latency
-                downloadThroughput: 1.5 * 1024 * 1024 / 8, // 1.5 Mbps
-                uploadThroughput: 750 * 1024 / 8 // 750 Kbps
-            }, () => {
-                if (chrome.runtime.lastError) {
-                    console.error("Error applying network throttling:", chrome.runtime.lastError.message);
-                    return;
-                }
-                console.log("Throttling applied successfully.");
-                callback();
-            });
-        });
-    });
-}
-
-// Function to remove throttling and detach debugger
-function removeThrottling(tabId) {
-    chrome.debugger.detach({tabId}, () => {
-        if (chrome.runtime.lastError) {
-            console.error("Error detaching debugger:", chrome.runtime.lastError.message);
-        } else {
-            console.log("Debugger detached successfully.");
-        }
-    });
-}
-
 // Function to change the viewport size
 function setViewport(viewport, callback) {
   chrome.windows.getCurrent({}, (window) => {
@@ -63,16 +11,33 @@ function setViewport(viewport, callback) {
           width: viewport.width,
           height: viewport.height
       }, () => {
-          console.log(`Viewport set to: ${viewport.width}x${viewport.height}`);
-          setTimeout(callback, 2000); // Wait for 2 seconds to ensure the viewport change
+          setTimeout(callback, 2000); // Wait 2 seconds to ensure viewport change
       });
   });
 }
 
-function runPerformanceTest(viewportChoice) {
-  let results = {};
+// Function to disable service worker in the tab
+function disableServiceWorker() {
+  if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (let registration of registrations) {
+              registration.unregister(); // Hentikan semua service worker
+          }
+      });
+  }
+}
 
-  // Choose viewport based on user's choice
+// Function to enable service worker in the tab
+function enableServiceWorker() {
+  window.location.reload(); // Reload halaman untuk mendaftarkan ulang service worker
+}
+
+// Function to run performance test
+function runPerformanceTest(viewportChoice) {
+  let resultsWithPWA = {};
+  let resultsWithoutPWA = {};
+
+  // Pilih viewport berdasarkan pilihan pengguna
   const selectedViewport = viewports[viewportChoice] || viewports.desktop;
 
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -84,32 +49,39 @@ function runPerformanceTest(viewportChoice) {
 
       const tabId = activeTab.id;
 
-      // Set viewport for the test
+      // Set viewport untuk pengujian dengan PWA aktif
       setViewport(selectedViewport, () => {
-          // Ensure no cache is used and reload the page
-          chrome.tabs.reload(tabId, { bypassCache: true }, () => {
-              console.log("Page reloaded with new viewport.");
+          chrome.scripting.executeScript({
+              target: { tabId: tabId },
+              files: ['content.js']
+          }, () => {
+              // Pengujian performa dengan PWA aktif
+              chrome.tabs.sendMessage(tabId, { action: 'collectPerformance' }, (dataWithPWA) => {
+                  resultsWithPWA = dataWithPWA;
 
-              applyThrottling(tabId, () => {
-                  // After applying throttling, execute content.js for the test
+                  // Nonaktifkan service worker untuk pengujian tanpa PWA
                   chrome.scripting.executeScript({
                       target: { tabId: tabId },
-                      files: ['content.js']
+                      func: disableServiceWorker // Nonaktifkan service worker di dalam tab
                   }, () => {
-                      chrome.tabs.sendMessage(tabId, { action: 'collectPerformance' }, (data) => {
-                          if (chrome.runtime.lastError || !data) {
-                              console.error(chrome.runtime.lastError ? chrome.runtime.lastError.message : 'No data received');
-                              removeThrottling(tabId); // Remove throttling in case of error
-                              return;
-                          }
+                      chrome.tabs.reload(tabId, { bypassCache: true }, () => {
+                          // Pengujian performa dengan PWA dinonaktifkan
+                          chrome.tabs.sendMessage(tabId, { action: 'collectPerformance', pwaStatusCheck: 'disabled' }, (dataWithoutPWA) => {
+                              resultsWithoutPWA = dataWithoutPWA;
 
-                          results = data;
+                              // Kirim hasil ke popup.js untuk ditampilkan
+                              chrome.runtime.sendMessage({
+                                  action: 'showComparisonResults',
+                                  dataWithPWA: resultsWithPWA,
+                                  dataWithoutPWA: resultsWithoutPWA
+                              });
 
-                          // Send the results to the popup for display
-                          chrome.runtime.sendMessage({ action: 'showResults', data: results });
-
-                          // Remove throttling after test
-                          removeThrottling(tabId);
+                              // Aktifkan kembali service worker setelah pengujian
+                              chrome.scripting.executeScript({
+                                  target: { tabId: tabId },
+                                  func: enableServiceWorker // Aktifkan service worker kembali di dalam tab
+                              });
+                          });
                       });
                   });
               });
@@ -120,7 +92,7 @@ function runPerformanceTest(viewportChoice) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'runPerformanceTest') {
-      // Run the test with selected viewport
+      // Jalankan pengujian dengan viewport yang dipilih
       runPerformanceTest(request.viewport);
   }
 });

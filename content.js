@@ -1,50 +1,86 @@
-// Mengumpulkan data performa (load time, ukuran halaman, blocking resources)
+// Fungsi untuk menghentikan service worker sementara untuk pengujian tanpa PWA
+function disableServiceWorker() {
+  return new Promise((resolve) => {
+      if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+              for (let registration of registrations) {
+                  registration.unregister(); // Hentikan service worker
+              }
+              resolve(true);
+          });
+      } else {
+          resolve(false); // Jika tidak ada service worker, langsung lanjut
+      }
+  });
+}
+
+// Fungsi untuk mengaktifkan kembali service worker setelah pengujian
+function enableServiceWorker() {
+  return new Promise((resolve) => {
+      window.location.reload(); // Muat ulang halaman untuk mendaftarkan kembali service worker
+      resolve(true);
+  });
+}
+
+// Fungsi untuk mengecek apakah situs menggunakan PWA
+function checkPWAStatus() {
+  let hasServiceWorker = false;
+  let hasManifest = false;
+  let isOfflineCapable = false;
+
+  // Cek apakah ada service worker yang terdaftar
+  if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+          if (registration) {
+              hasServiceWorker = true;
+          }
+      });
+  }
+
+  // Cek apakah ada manifest PWA di halaman
+  const manifestLink = document.querySelector('link[rel="manifest"]');
+  if (manifestLink) {
+      hasManifest = true;
+  }
+
+  // Cek apakah halaman bisa diakses secara offline
+  if (navigator.onLine === false) {
+      isOfflineCapable = true;
+  }
+
+  return {
+      hasServiceWorker: hasServiceWorker,
+      hasManifest: hasManifest,
+      isOfflineCapable: isOfflineCapable,
+      isPWA: hasServiceWorker && hasManifest
+  };
+}
+
+// Mengumpulkan data performa
 function collectPerformanceData() {
   const performanceTiming = window.performance.timing;
   const loadTime = performanceTiming.loadEventEnd - performanceTiming.navigationStart;
-  const timeToInteractive = performanceTiming.domInteractive - performanceTiming.navigationStart;
   const firstContentfulPaint = performanceTiming.responseEnd - performanceTiming.requestStart;
+
+  const lcp = 0; // Placeholder untuk LCP (Largest Contentful Paint)
+  const cls = 0; // Placeholder untuk CLS (Cumulative Layout Shift)
+
   const resources = window.performance.getEntriesByType('resource');
   const renderBlockingResources = resources.filter(resource =>
       resource.initiatorType === 'script' || resource.initiatorType === 'link'
   );
 
-  // Mengumpulkan LCP, CLS, FID
-  let lcp = 0, cls = 0, fid = 0;
-
-  new PerformanceObserver((entryList) => {
-    const entries = entryList.getEntries();
-    lcp = entries[0].startTime;
-  }).observe({ type: 'largest-contentful-paint', buffered: true });
-
-  new PerformanceObserver((entryList) => {
-    const entries = entryList.getEntries();
-    entries.forEach((entry) => {
-      cls += entry.value;
-    });
-  }).observe({ type: 'layout-shift', buffered: true });
-
-  new PerformanceObserver((entryList) => {
-    const entries = entryList.getEntries();
-    entries.forEach((entry) => {
-      fid = entry.processingStart - entry.startTime;
-    });
-  }).observe({ type: 'first-input', buffered: true });
-
   return {
-    loadTime: loadTime,
-    timeToInteractive: timeToInteractive,
-    firstContentfulPaint: firstContentfulPaint,
-    renderBlockingResources: renderBlockingResources.length,
-    pageSize: document.documentElement.innerHTML.length,
-    largestContentfulPaint: lcp,
-    cumulativeLayoutShift: cls,
-    firstInputDelay: fid
+      loadTime: loadTime || 'N/A',
+      firstContentfulPaint: firstContentfulPaint || 'N/A',
+      largestContentfulPaint: lcp || 'N/A',
+      cumulativeLayoutShift: cls || 'N/A',
+      renderBlockingResources: renderBlockingResources.length,
+      pageSize: document.documentElement.innerHTML.length
   };
 }
 
-
-// Mengumpulkan data SEO (meta tag, heading structure)
+// Mengumpulkan data SEO
 function collectSEOData() {
   const title = document.querySelector('title') ? document.querySelector('title').innerText : 'No Title';
   const metaDescription = document.querySelector('meta[name="description"]') ?
@@ -61,7 +97,7 @@ function collectSEOData() {
   };
 }
 
-// Mengumpulkan data aksesibilitas (alt text, aria-labels, dsb.)
+// Mengumpulkan data aksesibilitas
 function collectAccessibilityData() {
   const images = document.querySelectorAll('img');
   const imagesWithoutAlt = Array.from(images).filter(img => !img.alt);
@@ -76,7 +112,7 @@ function collectAccessibilityData() {
   };
 }
 
-// Mengumpulkan best practices data (HTTPS, mixed content)
+// Mengumpulkan data best practices
 function collectBestPracticesData() {
   const isHttps = window.location.protocol === 'https:';
   const mixedContent = document.querySelectorAll('img[src^="http://"], script[src^="http://"], link[href^="http://"]');
@@ -87,38 +123,25 @@ function collectBestPracticesData() {
   };
 }
 
-// Menguji apakah situs responsif terhadap layar mobile
+// Menguji responsivitas UI
 function collectResponsivenessData() {
   const isResponsive = window.matchMedia("(max-width: 600px)").matches;
-
-  return {
-      isResponsive: isResponsive
-  };
+  return { isResponsive: isResponsive };
 }
 
 // Mengumpulkan data First Input Delay (FID)
 function collectFIDData() {
   let firstInputDelay = 0;
 
-  return new Promise((resolve) => {
-      new PerformanceObserver((list) => {
-          const entries = list.getEntries();
-          entries.forEach((entry) => {
-              if (firstInputDelay === 0) {
-                  firstInputDelay = entry.processingStart - entry.startTime;
-                  resolve({ firstInputDelay });
-              }
-          });
-      }).observe({ type: 'first-input', buffered: true });
+  new PerformanceObserver((list) => {
+      const entries = list.getEntries();
+      entries.forEach((entry) => {
+          firstInputDelay = entry.processingStart - entry.startTime;
+      });
+  }).observe({ type: 'first-input', buffered: true });
 
-      // Jika tidak ada input dalam 5 detik, kembalikan nilai default
-      setTimeout(() => {
-          resolve({ firstInputDelay });
-      }, 10000);
-  });
+  return { firstInputDelay: firstInputDelay };
 }
-
-
 
 // Mengumpulkan data cache dan Background Sync
 function collectCacheData() {
@@ -143,7 +166,7 @@ function collectCacheData() {
   }
 }
 
-// Mengumpulkan penggunaan memori dari JS Heap
+// Mengumpulkan penggunaan memori dan CPU
 function collectResourceUsageData() {
   if (performance.memory) {
       return {
@@ -158,14 +181,14 @@ function collectResourceUsageData() {
   }
 }
 
-// Menguji apakah Web Share API didukung
+// Memeriksa dukungan Web Share API
 function collectWebShareSupportData() {
   return {
       supportsWebShare: navigator.share ? true : false
   };
 }
 
-// Listener untuk menerima pesan dari background.js dan mengirim data performa
+// Listener untuk menerima pesan dari background.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'collectPerformance') {
       const performanceData = collectPerformanceData();
@@ -173,11 +196,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const accessibilityData = collectAccessibilityData();
       const bestPracticesData = collectBestPracticesData();
       const responsivenessData = collectResponsivenessData();
+      const fidData = collectFIDData();
 
       collectCacheData().then(cacheData => {
           const resourceUsageData = collectResourceUsageData();
           const webShareData = collectWebShareSupportData();
-          const fidData = collectFIDData();
 
           sendResponse({
               performance: performanceData || {},
@@ -192,8 +215,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
       });
 
-      return true; // Keep the message port open for async operations
+      return true;
   }
 });
-
-
