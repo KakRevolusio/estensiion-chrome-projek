@@ -1,32 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>PWA vs Non-PWA Performance</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #f2f2f2;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Test Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .category {
+            margin-bottom: 20px;
+        }
+
+        .category h2 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .progress {
+            height: 16px;
+            background-color: #f1f1f1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            text-align: center;
+            line-height: 16px;
+            color: white;
+            font-size: 12px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .score-label {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .high-score {
+            background-color: #0cce6b;
+        }
+
+        .medium-score {
+            background-color: #ffa400;
+        }
+
+        .low-score {
+            background-color: #ff4e42;
+        }
+
+        #loading {
+            display: none;
+            font-weight: bold;
+            color: blue;
+        }
+    </style>
 </head>
 <body>
-  <h1>Performance Comparison</h1>
-  <button id="run-test">Run Test</button>
-  <div id="results"></div>
+    <h1>Performance Test</h1>
 
-  <script src="popup.js"></script>
+    <label for="viewport">Pilih Tampilan:</label>
+    <select id="viewport">
+        <option value="desktop">Desktop</option>
+        <option value="tablet">Tablet</option>
+        <option value="mobile">Mobile</option>
+    </select>
+
+    <button id="runTest">Run Test</button>
+
+    <div id="loading">Loading...</div>
+
+    <div id="results"></div>
+
+    <script src="popup.js"></script>
 </body>
 </html>
