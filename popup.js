@@ -1,42 +1,127 @@
 document.getElementById('runTest').addEventListener('click', () => {
-  const selectedViewport = document.getElementById('viewport').value;
-
-  // Kirim pesan ke background.js untuk menjalankan pengujian dengan viewport yang dipilih
-  chrome.runtime.sendMessage({ action: 'runPerformanceTest', viewport: selectedViewport });
+    // Kirim pesan ke background.js untuk menjalankan pengujian
+    chrome.runtime.sendMessage({ action: 'runPerformanceTest' });
 });
+
+// Fungsi untuk membuat ikon centang atau silang
+function createStatusIcon(condition) {
+    return condition ? '<span style="color:green;">✔️</span>' : '<span style="color:red;">❌</span>';
+}
+
+// Fungsi untuk membandingkan dua nilai dan memberikan tanda mana yang lebih baik
+function compareValues(valuePWA, valueNonPWA, isLowerBetter = true) {
+    if (isLowerBetter) {
+        return valuePWA < valueNonPWA ? '<span style="color:green;">(PWA lebih baik)</span>' : '<span style="color:red;">(Non-PWA lebih baik)</span>';
+    } else {
+        return valuePWA > valueNonPWA ? '<span style="color:green;">(PWA lebih baik)</span>' : '<span style="color:red;">(Non-PWA lebih baik)</span>';
+    }
+}
+
+// Fungsi untuk menampilkan hasil berdasarkan kategori yang dipilih
+function showResultsByCategory(category, resultsWithPWA, resultsWithoutPWA) {
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = `<h2>Hasil untuk kategori: ${category}</h2>`;
+
+    let htmlContent = `
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th>Ukuran Layar</th>
+                    <th>Metode</th>
+                    <th>Dengan PWA</th>
+                    <th>Tanpa PWA</th>
+                    <th>Perbandingan</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    for (const viewport in resultsWithPWA) {
+        const withPWA = resultsWithPWA[viewport];
+        const withoutPWA = resultsWithoutPWA[viewport];
+
+        if (category === 'performance') {
+            htmlContent += `
+                <tr>
+                    <td rowspan="3"><strong>${viewport.toUpperCase()}</strong></td>
+                    <td>Waktu Muat</td>
+                    <td>${withPWA.performance.loadTime} ms</td>
+                    <td>${withoutPWA.performance.loadTime} ms</td>
+                    <td>${compareValues(withPWA.performance.loadTime, withoutPWA.performance.loadTime)}</td>
+                </tr>
+                <tr>
+                    <td>Ukuran Halaman</td>
+                    <td>${withPWA.performance.pageSize} bytes</td>
+                    <td>${withoutPWA.performance.pageSize} bytes</td>
+                    <td>${compareValues(withPWA.performance.pageSize, withoutPWA.performance.pageSize)}</td>
+                </tr>
+                <tr>
+                    <td>Render Blocking Resources</td>
+                    <td>${withPWA.performance.renderBlockingResources}</td>
+                    <td>${withoutPWA.performance.renderBlockingResources}</td>
+                    <td>${compareValues(withPWA.performance.renderBlockingResources, withoutPWA.performance.renderBlockingResources)}</td>
+                </tr>
+            `;
+        } else if (category === 'seo') {
+            htmlContent += `
+                <tr>
+                    <td rowspan="2"><strong>${viewport.toUpperCase()}</strong></td>
+                    <td>Title</td>
+                    <td>${withPWA.seo.title}</td>
+                    <td>${withoutPWA.seo.title}</td>
+                    <td>${withPWA.seo.title === withoutPWA.seo.title ? '<span style="color:green;">(Sama)</span>' : '<span style="color:red;">(Berbeda)</span>'}</td>
+                </tr>
+                <tr>
+                    <td>Description</td>
+                    <td>${withPWA.seo.metaDescription}</td>
+                    <td>${withoutPWA.seo.metaDescription}</td>
+                    <td>${withPWA.seo.metaDescription === withoutPWA.seo.metaDescription ? '<span style="color:green;">(Sama)</span>' : '<span style="color:red;">(Berbeda)</span>'}</td>
+                </tr>
+            `;
+        } else if (category === 'accessibility') {
+            htmlContent += `
+                <tr>
+                    <td rowspan="1"><strong>${viewport.toUpperCase()}</strong></td>
+                    <td>Gambar tanpa alt</td>
+                    <td>${withPWA.accessibility.imagesWithoutAlt}</td>
+                    <td>${withoutPWA.accessibility.imagesWithoutAlt}</td>
+                    <td>${compareValues(withPWA.accessibility.imagesWithoutAlt, withoutPWA.accessibility.imagesWithoutAlt, false)}</td>
+                </tr>
+            `;
+        } else if (category === 'bestPractices') {
+            htmlContent += `
+                <tr>
+                    <td rowspan="1"><strong>${viewport.toUpperCase()}</strong></td>
+                    <td>HTTPS</td>
+                    <td>${createStatusIcon(withPWA.bestPractices.isHttps)}</td>
+                    <td>${createStatusIcon(withoutPWA.bestPractices.isHttps)}</td>
+                    <td>${withPWA.bestPractices.isHttps === withoutPWA.bestPractices.isHttps ? '<span style="color:green;">(Sama)</span>' : '<span style="color:red;">(Berbeda)</span>'}</td>
+                </tr>
+            `;
+        }
+    }
+
+    htmlContent += `</tbody></table>`;
+    resultsDiv.innerHTML += htmlContent;
+}
 
 // Menerima hasil dari background.js dan menampilkan hasil pengujian
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'showComparisonResults') {
-      const resultsWithPWA = request.dataWithPWA;
-      const resultsWithoutPWA = request.dataWithoutPWA;
-      const resultsDiv = document.getElementById('results');
+    if (request.action === 'showComparisonResults') {
+        const resultsWithPWA = request.dataWithPWA;
+        const resultsWithoutPWA = request.dataWithoutPWA;
 
-      if (resultsWithPWA && resultsWithoutPWA) {
-          // Tampilkan hasil perbandingan PWA vs non-PWA
-          resultsDiv.innerHTML = `
-              <h2>Perbandingan Performa (PWA vs Non-PWA)</h2>
+        // Simpan hasil ke variabel global
+        window.resultsWithPWA = resultsWithPWA;
+        window.resultsWithoutPWA = resultsWithoutPWA;
 
-              <div class="category">
-                  <h3>Performa (Dengan PWA)</h3>
-                  <p>Waktu Muat: ${resultsWithPWA.performance.loadTime} ms</p>
-                  <p>Ukuran Halaman: ${resultsWithPWA.performance.pageSize} bytes</p>
-                  <p>Render Blocking Resources: ${resultsWithPWA.performance.renderBlockingResources}</p>
-              </div>
+        // Tampilkan hasil performa secara default
+        showResultsByCategory('performance', resultsWithPWA, resultsWithoutPWA);
+    }
+});
 
-              <div class="category">
-                  <h3>Performa (Tanpa PWA)</h3>
-                  <p>Waktu Muat: ${resultsWithoutPWA.performance.loadTime} ms</p>
-                  <p>Ukuran Halaman: ${resultsWithoutPWA.performance.pageSize} bytes</p>
-                  <p>Render Blocking Resources: ${resultsWithoutPWA.performance.renderBlockingResources}</p>
-              </div>
-
-              <h3>Perbandingan:</h3>
-              <p>Perbedaan Waktu Muat: ${Math.abs(resultsWithPWA.performance.loadTime - resultsWithoutPWA.performance.loadTime)} ms</p>
-              <p>Perbedaan Ukuran Halaman: ${Math.abs(resultsWithPWA.performance.pageSize - resultsWithoutPWA.performance.pageSize)} bytes</p>
-          `;
-      } else {
-          resultsDiv.innerHTML = '<p>Data perbandingan tidak tersedia.</p>';
-      }
-  }
+// Event listener untuk navigasi kategori
+document.getElementById('categorySelect').addEventListener('change', function() {
+    const selectedCategory = this.value;
+    showResultsByCategory(selectedCategory, window.resultsWithPWA, window.resultsWithoutPWA);
 });

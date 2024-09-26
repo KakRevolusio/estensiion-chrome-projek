@@ -4,18 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Performance Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #results {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Performance Test</h1>
+    <h1>Pengujian Performa PWA vs Non-PWA</h1>
 
-    <label for="viewport">Pilih Tampilan:</label>
-    <select id="viewport">
-        <option value="desktop">Desktop</option>
-        <option value="tablet">Tablet</option>
-        <option value="mobile">Mobile</option>
+    <button id="runTest">Jalankan Pengujian</button>
+
+    <label for="categorySelect">Pilih Kategori Hasil:</label>
+    <select id="categorySelect">
+        <option value="performance">Performa</option>
+        <option value="seo">SEO</option>
+        <option value="accessibility">Aksesibilitas</option>
+        <option value="bestPractices">Best Practices</option>
     </select>
-
-    <button id="runTest">Run Test</button>
 
     <div id="results"></div>
 
