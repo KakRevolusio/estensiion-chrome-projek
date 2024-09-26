@@ -40,28 +40,42 @@ function showResultsByCategory(category, resultsWithPWA, resultsWithoutPWA) {
         const withPWA = resultsWithPWA[viewport];
         const withoutPWA = resultsWithoutPWA[viewport];
 
-        if (category === 'performance') {
-            htmlContent += `
-                <tr>
-                    <td rowspan="3"><strong>${viewport.toUpperCase()}</strong></td>
-                    <td>Waktu Muat</td>
-                    <td>${withPWA.performance.loadTime} ms</td>
-                    <td>${withoutPWA.performance.loadTime} ms</td>
-                    <td>${compareValues(withPWA.performance.loadTime, withoutPWA.performance.loadTime)}</td>
-                </tr>
-                <tr>
-                    <td>Ukuran Halaman</td>
-                    <td>${withPWA.performance.pageSize} bytes</td>
-                    <td>${withoutPWA.performance.pageSize} bytes</td>
-                    <td>${compareValues(withPWA.performance.pageSize, withoutPWA.performance.pageSize)}</td>
-                </tr>
-                <tr>
-                    <td>Render Blocking Resources</td>
-                    <td>${withPWA.performance.renderBlockingResources}</td>
-                    <td>${withoutPWA.performance.renderBlockingResources}</td>
-                    <td>${compareValues(withPWA.performance.renderBlockingResources, withoutPWA.performance.renderBlockingResources)}</td>
-                </tr>
-            `;
+        
+    if (category === 'performance') {
+        htmlContent += `
+            <tr>
+                <td rowspan="5"><strong>${viewport.toUpperCase()}</strong></td>
+                <td>Waktu Muat</td>
+                <td>${withPWA.performance.loadTime} ms</td>
+                <td>${withoutPWA.performance.loadTime} ms</td>
+                <td>${compareValues(withPWA.performance.loadTime, withoutPWA.performance.loadTime)}</td>
+            </tr>
+            <tr>
+                <td>Ukuran Halaman</td>
+                <td>${withPWA.performance.pageSize} bytes</td>
+                <td>${withoutPWA.performance.pageSize} bytes</td>
+                <td>${compareValues(withPWA.performance.pageSize, withoutPWA.performance.pageSize)}</td>
+            </tr>
+            <tr>
+                <td>Render Blocking Resources</td>
+                <td>${withPWA.performance.renderBlockingResources}</td>
+                <td>${withoutPWA.performance.renderBlockingResources}</td>
+                <td>${compareValues(withPWA.performance.renderBlockingResources, withoutPWA.performance.renderBlockingResources)}</td>
+            </tr>
+            <tr>
+                <td>CPU Usage</td>
+                <td>${withPWA.resourceUsage.averageCpuUsage.toFixed(2)} ms</td>
+                <td>${withoutPWA.resourceUsage.averageCpuUsage.toFixed(2)} ms</td>
+                <td>${compareValues(withPWA.resourceUsage.averageCpuUsage, withoutPWA.resourceUsage.averageCpuUsage)}</td>
+            </tr>
+            <tr>
+                <td>Memory Usage</td>
+                <td>${(withPWA.resourceUsage.averageMemoryUsage / 1048576).toFixed(2)} MB</td>
+                <td>${(withoutPWA.resourceUsage.averageMemoryUsage / 1048576).toFixed(2)} MB</td>
+                <td>${compareValues(withPWA.resourceUsage.averageMemoryUsage, withoutPWA.resourceUsage.averageMemoryUsage)}</td>
+            </tr>
+        `;
+    
         } else if (category === 'seo') {
             htmlContent += `
                 <tr>
@@ -104,7 +118,37 @@ function showResultsByCategory(category, resultsWithPWA, resultsWithoutPWA) {
     htmlContent += `</tbody></table>`;
     resultsDiv.innerHTML += htmlContent;
 }
+const loadingElement = document.getElementById('loading');
 
+function showLoading() {
+    loadingElement.style.display = 'block';
+}
+
+function hideLoading() {
+    loadingElement.style.display = 'none';
+}
+
+document.getElementById('runTest').addEventListener('click', () => {
+    showLoading();
+    // Kirim pesan ke background.js untuk menjalankan pengujian
+    chrome.runtime.sendMessage({ action: 'runPerformanceTest' });
+});
+
+// Menerima hasil dari background.js dan menampilkan hasil pengujian
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'showComparisonResults') {
+        hideLoading();
+        const resultsWithPWA = request.dataWithPWA;
+        const resultsWithoutPWA = request.dataWithoutPWA;
+
+        // Simpan hasil ke variabel global
+        window.resultsWithPWA = resultsWithPWA;
+        window.resultsWithoutPWA = resultsWithoutPWA;
+
+        // Tampilkan hasil performa secara default
+        showResultsByCategory('performance', resultsWithPWA, resultsWithoutPWA);
+    }
+});
 // Menerima hasil dari background.js dan menampilkan hasil pengujian
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'showComparisonResults') {

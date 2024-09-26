@@ -58,23 +58,49 @@ function checkPWAStatus() {
 
 // Mengumpulkan data performa
 function collectPerformanceData() {
-    const performanceTiming = window.performance.timing;
-    const loadTime = performanceTiming.loadEventEnd - performanceTiming.navigationStart;
-    const firstContentfulPaint = performanceTiming.responseEnd - performanceTiming.requestStart;
+    const performanceTiming = performance.timing;
+    const navigationStart = performanceTiming.navigationStart;
+    const now = performance.now();
 
-    const lcp = 0; // Placeholder untuk LCP (Largest Contentful Paint)
-    const cls = 0; // Placeholder untuk CLS (Cumulative Layout Shift)
+    // Hitung waktu muat menggunakan performance.now()
+    const loadTime = Math.round(now);
 
-    const resources = window.performance.getEntriesByType('resource');
+    // Hitung First Contentful Paint (FCP)
+    let firstContentfulPaint = 0;
+    const paintEntries = performance.getEntriesByType('paint');
+    const fcpEntry = paintEntries.find(entry => entry.name === 'first-contentful-paint');
+    if (fcpEntry) {
+        firstContentfulPaint = Math.round(fcpEntry.startTime);
+    }
+
+    // Hitung Largest Contentful Paint (LCP)
+    let largestContentfulPaint = 0;
+    new PerformanceObserver((entryList) => {
+        const entries = entryList.getEntries();
+        const lastEntry = entries[entries.length - 1];
+        largestContentfulPaint = Math.round(lastEntry.startTime);
+    }).observe({ type: 'largest-contentful-paint', buffered: true });
+
+    // Hitung Cumulative Layout Shift (CLS)
+    let cumulativeLayoutShift = 0;
+    new PerformanceObserver((entryList) => {
+        for (const entry of entryList.getEntries()) {
+            if (!entry.hadRecentInput) {
+                cumulativeLayoutShift += entry.value;
+            }
+        }
+    }).observe({ type: 'layout-shift', buffered: true });
+
+    const resources = performance.getEntriesByType('resource');
     const renderBlockingResources = resources.filter(resource =>
         resource.initiatorType === 'script' || resource.initiatorType === 'link'
     );
 
     return {
-        loadTime: loadTime || 'N/A',
-        firstContentfulPaint: firstContentfulPaint || 'N/A',
-        largestContentfulPaint: lcp || 'N/A',
-        cumulativeLayoutShift: cls || 'N/A',
+        loadTime: loadTime,
+        firstContentfulPaint: firstContentfulPaint,
+        largestContentfulPaint: largestContentfulPaint,
+        cumulativeLayoutShift: cumulativeLayoutShift.toFixed(3),
         renderBlockingResources: renderBlockingResources.length,
         pageSize: document.documentElement.innerHTML.length
     };
@@ -168,17 +194,41 @@ function collectCacheData() {
 
 // Mengumpulkan penggunaan memori dan CPU
 function collectResourceUsageData() {
-    if (performance.memory) {
-        return {
-            memoryUsed: performance.memory.usedJSHeapSize,
-            totalMemory: performance.memory.totalJSHeapSize
-        };
-    } else {
-        return {
-            memoryUsed: 'N/A',
-            totalMemory: 'N/A'
-        };
-    }
+    return new Promise((resolve) => {
+        let cpuUsage = 0;
+        let memoryUsage = 0;
+        let measurementCount = 0;
+        const measurementDuration = 5000; // Measure for 5 seconds
+        const startTime = performance.now();
+
+        function measure() {
+            if (performance.memory) {
+                memoryUsage += performance.memory.usedJSHeapSize;
+            }
+
+            // Simulate CPU usage measurement
+            const begin = performance.now();
+            for (let i = 0; i < 1000000; i++) {
+                Math.random();
+            }
+            const end = performance.now();
+            cpuUsage += end - begin;
+
+            measurementCount++;
+
+            if (performance.now() - startTime < measurementDuration) {
+                requestAnimationFrame(measure);
+            } else {
+                resolve({
+                    averageCpuUsage: cpuUsage / measurementCount,
+                    averageMemoryUsage: memoryUsage / measurementCount,
+                    measurementCount: measurementCount
+                });
+            }
+        }
+
+        measure();
+    });
 }
 
 // Memeriksa dukungan Web Share API
@@ -198,20 +248,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const responsivenessData = collectResponsivenessData();
         const fidData = collectFIDData();
 
-        collectCacheData().then(cacheData => {
-            const resourceUsageData = collectResourceUsageData();
+        Promise.all([
+            collectCacheData(),
+            collectResourceUsageData()
+        ]).then(([cacheData, resourceUsageData]) => {
             const webShareData = collectWebShareSupportData();
 
             sendResponse({
-                performance: performanceData || {},
-                seo: seoData || {},
-                accessibility: accessibilityData || {},
-                bestPractices: bestPracticesData || {},
-                responsiveness: responsivenessData || {},
-                cache: cacheData || {},
-                resourceUsage: resourceUsageData || {},
-                webShare: webShareData || {},
-                fid: fidData || {}
+                performance: performanceData,
+                seo: seoData,
+                accessibility: accessibilityData,
+                bestPractices: bestPracticesData,
+                responsiveness: responsivenessData,
+                cache: cacheData,
+                resourceUsage: resourceUsageData,
+                webShare: webShareData,
+                fid: fidData
             });
         });
 
