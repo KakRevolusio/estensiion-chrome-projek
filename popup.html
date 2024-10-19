@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #results {
+            margin-top: 20px;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Pengujian Performa PWA vs Non-PWA</h1>
+    
+    <div>
+        <label for="viewportSelect">Pilih Tampilan:</label>
+        <select id="viewportSelect">
+            <option value="all">Semua</option>
+            <option value="desktop">Desktop</option>
+            <option value="tablet">Tablet</option>
+            <option value="mobile">Mobile</option>
+        </select>
+    </div>
+
+    <button id="runTest">Jalankan Pengujian</button>
+
+    <div>
+        <label for="categorySelect">Pilih Kategori Hasil:</label>
+        <select id="categorySelect">
+            <option value="performance">Performa</option>
+            <option value="seo">SEO</option>
+            <option value="accessibility">Aksesibilitas</option>
+            <option value="bestPractices">Best Practices</option>
+        </select>
+    </div>
+
+    <div id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Sedang melakukan pengujian... Mohon tunggu.</p>
+    </div>
+
+    <div id="results"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
