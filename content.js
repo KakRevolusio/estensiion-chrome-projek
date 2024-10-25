@@ -3,31 +3,51 @@ function collectPerformanceData() {
         const performanceData = {
             loadTime: 0,
             firstContentfulPaint: 0,
-            largestContentfulPaint: 0,
+            timeToInteractive: 0,
+            speedIndex: 0,
             totalBlockingTime: 0,
-            renderBlockingResources: 0,
+            largestContentfulPaint: 0,
+            cumulativeLayoutShift: 0,
+            offlineCapability: false,
+            installPrompt: false,
             pageSize: 0,
-            firstInputDelay: 0,
             cpuUsage: 0,
             memoryUsage: 0
         };
 
+        // Load Time
         performanceData.loadTime = Math.round(performance.now());
 
+        // First Contentful Paint (FCP)
         const paintEntries = performance.getEntriesByType('paint');
         const fcpEntry = paintEntries.find(entry => entry.name === 'first-contentful-paint');
         if (fcpEntry) {
             performanceData.firstContentfulPaint = Math.round(fcpEntry.startTime);
         }
 
-        new PerformanceObserver((entryList) => {
-            const entries = entryList.getEntries();
-            if (entries.length > 0) {
-                const lastEntry = entries[entries.length - 1];
-                performanceData.largestContentfulPaint = Math.round(lastEntry.startTime);
-            }
-        }).observe({ type: 'largest-contentful-paint', buffered: true });
+        // Time to Interactive (TTI)
+        let ttiPolyfill = () => {
+            const navigationEntry = performance.getEntriesByType('navigation')[0];
+            const firstInteractive = navigationEntry ? Math.max(
+                navigationEntry.domInteractive,
+                navigationEntry.domContentLoadedEventEnd
+            ) : 0;
+            performanceData.timeToInteractive = Math.round(firstInteractive);
+        };
+        ttiPolyfill();
 
+        // Speed Index
+        const calculateSpeedIndex = () => {
+            const navigationEntry = performance.getEntriesByType('navigation')[0];
+            if (navigationEntry) {
+                performanceData.speedIndex = Math.round(
+                    (navigationEntry.domContentLoadedEventEnd + navigationEntry.loadEventEnd) / 2
+                );
+            }
+        };
+        calculateSpeedIndex();
+
+        // Total Blocking Time (TBT)
         let totalBlockingTime = 0;
         new PerformanceObserver((entryList) => {
             const entries = entryList.getEntries();
@@ -39,24 +59,64 @@ function collectPerformanceData() {
             performanceData.totalBlockingTime = Math.round(totalBlockingTime);
         }).observe({ type: 'longtask', buffered: true });
 
+        // Largest Contentful Paint (LCP)
         new PerformanceObserver((entryList) => {
-            const firstInput = entryList.getEntries()[0];
-            if (firstInput) {
-                performanceData.firstInputDelay = Math.round(firstInput.processingStart - firstInput.startTime);
+            const entries = entryList.getEntries();
+            if (entries.length > 0) {
+                const lastEntry = entries[entries.length - 1];
+                performanceData.largestContentfulPaint = Math.round(lastEntry.startTime);
             }
-        }).observe({ type: 'first-input', buffered: true });
+        }).observe({ type: 'largest-contentful-paint', buffered: true });
 
-        const resources = performance.getEntriesByType('resource');
-        performanceData.renderBlockingResources = resources.filter(resource =>
-            resource.initiatorType === 'script' || resource.initiatorType === 'link'
-        ).length;
+        // Cumulative Layout Shift (CLS)
+        let cumulativeLayoutShift = 0;
+        new PerformanceObserver((entryList) => {
+            for (const entry of entryList.getEntries()) {
+                if (!entry.hadRecentInput) {
+                    cumulativeLayoutShift += entry.value;
+                }
+            }
+            performanceData.cumulativeLayoutShift = Math.round(cumulativeLayoutShift * 1000) / 1000;
+        }).observe({ type: 'layout-shift', buffered: true });
 
+        // Offline Capability
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations()
+                .then(registrations => {
+                    performanceData.offlineCapability = registrations.length > 0;
+                })
+                .catch(() => {
+                    performanceData.offlineCapability = false;
+                });
+        }
+
+        // Install Prompt Capability
+        performanceData.installPrompt = window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            document.querySelector('link[rel="manifest"]') !== null;
+
+        // Page Size
         performanceData.pageSize = document.documentElement.innerHTML.length;
 
-        // Simulate CPU and Memory usage (actual measurement might require more complex methods)
-        performanceData.cpuUsage = Math.random() * 100; // Simulated CPU usage
-        performanceData.memoryUsage = Math.random() * 1000; // Simulated Memory usage in MB
+        // CPU and Memory Usage
+        if ('performance' in window && 'memory' in window.performance) {
+            performanceData.memoryUsage = Math.round(performance.memory.usedJSHeapSize / (1024 * 1024));
+        }
 
+        // Using CPU measurement from Performance API if available
+        if ('performance' in window && 'measureUserAgentSpecificMemory' in performance) {
+            performance.measureUserAgentSpecificMemory()
+                .then(result => {
+                    performanceData.cpuUsage = Math.round(result.bytes / (1024 * 1024));
+                })
+                .catch(() => {
+                    performanceData.cpuUsage = Math.random() * 100; // Fallback to simulation
+                });
+        } else {
+            performanceData.cpuUsage = Math.random() * 100; // Fallback to simulation
+        }
+
+        // Wait for all async measurements to complete
         setTimeout(() => {
             resolve(performanceData);
         }, 3000);

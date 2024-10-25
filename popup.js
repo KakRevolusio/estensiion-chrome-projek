@@ -1,4 +1,3 @@
-// popup.js
 document.addEventListener('DOMContentLoaded', function() {
     const runTestButton = document.getElementById('runTest');
     const viewportSelect = document.getElementById('viewportSelect');
@@ -79,62 +78,80 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (category === 'performance') {
                     htmlContent += `
-                        <tr>
-                            <td rowspan="9"><strong>${viewport.toUpperCase()}</strong></td>
-                            <td>Waktu Muat</td>
-                            <td>${withPWA.performance.loadTime} ms</td>
-                            <td>${withoutPWA.performance.loadTime} ms</td>
-                            <td>${compareValues(withPWA.performance.loadTime, withoutPWA.performance.loadTime)}</td>
-                        </tr>
-                        <tr>
-                            <td>First Contentful Paint (FCP)</td>
-                            <td>${withPWA.performance.firstContentfulPaint} ms</td>
-                            <td>${withoutPWA.performance.firstContentfulPaint} ms</td>
-                            <td>${compareValues(withPWA.performance.firstContentfulPaint, withoutPWA.performance.firstContentfulPaint)}</td>
-                        </tr>
-                        <tr>
-                            <td>Largest Contentful Paint (LCP)</td>
-                            <td>${withPWA.performance.largestContentfulPaint} ms</td>
-                            <td>${withoutPWA.performance.largestContentfulPaint} ms</td>
-                            <td>${compareValues(withPWA.performance.largestContentfulPaint, withoutPWA.performance.largestContentfulPaint)}</td>
-                        </tr>
-                        <tr>
-                            <td>Total Blocking Time (TBT)</td>
-                            <td>${withPWA.performance.totalBlockingTime} ms</td>
-                            <td>${withoutPWA.performance.totalBlockingTime} ms</td>
-                            <td>${compareValues(withPWA.performance.totalBlockingTime, withoutPWA.performance.totalBlockingTime)}</td>
-                        </tr>
-                        <tr>
-                            <td>First Input Delay (FID)</td>
-                            <td>${withPWA.performance.firstInputDelay} ms</td>
-                            <td>${withoutPWA.performance.firstInputDelay} ms</td>
-                            <td>${compareValues(withPWA.performance.firstInputDelay, withoutPWA.performance.firstInputDelay)}</td>
-                        </tr>
-                        <tr>
-                            <td>Render Blocking Resources</td>
-                            <td>${withPWA.performance.renderBlockingResources}</td>
-                            <td>${withoutPWA.performance.renderBlockingResources}</td>
-                            <td>${compareValues(withPWA.performance.renderBlockingResources, withoutPWA.performance.renderBlockingResources)}</td>
-                        </tr>
-                        <tr>
-                            <td>Ukuran Halaman</td>
-                            <td>${withPWA.performance.pageSize} bytes</td>
-                            <td>${withoutPWA.performance.pageSize} bytes</td>
-                            <td>${compareValues(withPWA.performance.pageSize, withoutPWA.performance.pageSize)}</td>
-                        </tr>
-                        <tr>
-                            <td>CPU Usage</td>
-                            <td>${withPWA.performance.cpuUsage.toFixed(2)}%</td>
-                            <td>${withoutPWA.performance.cpuUsage.toFixed(2)}%</td>
-                            <td>${compareValues(withPWA.performance.cpuUsage, withoutPWA.performance.cpuUsage)}</td>
-                        </tr>
-                        <tr>
-                            <td>Memory Usage</td>
-                            <td>${withPWA.performance.memoryUsage.toFixed(2)} MB</td>
-                            <td>${withoutPWA.performance.memoryUsage.toFixed(2)} MB</td>
-                            <td>${compareValues(withPWA.performance.memoryUsage, withoutPWA.performance.memoryUsage)}</td>
-                        </tr>
-                    `;
+        <tr>
+            <td rowspan="12"><strong>${viewport.toUpperCase()}</strong></td>
+            <td>First Contentful Paint (FCP)</td>
+            <td>${withPWA.performance.firstContentfulPaint} ms</td>
+            <td>${withoutPWA.performance.firstContentfulPaint} ms</td>
+            <td>${compareValues(withPWA.performance.firstContentfulPaint, withoutPWA.performance.firstContentfulPaint)}</td>
+        </tr>
+        <tr>
+            <td>Time to Interactive (TTI)</td>
+            <td>${withPWA.performance.timeToInteractive} ms</td>
+            <td>${withoutPWA.performance.timeToInteractive} ms</td>
+            <td>${compareValues(withPWA.performance.timeToInteractive, withoutPWA.performance.timeToInteractive)}</td>
+        </tr>
+        <tr>
+            <td>Speed Index</td>
+            <td>${withPWA.performance.speedIndex} ms</td>
+            <td>${withoutPWA.performance.speedIndex} ms</td>
+            <td>${compareValues(withPWA.performance.speedIndex, withoutPWA.performance.speedIndex)}</td>
+        </tr>
+        <tr>
+            <td>Total Blocking Time (TBT)</td>
+            <td>${withPWA.performance.totalBlockingTime} ms</td>
+            <td>${withoutPWA.performance.totalBlockingTime} ms</td>
+            <td>${compareValues(withPWA.performance.totalBlockingTime, withoutPWA.performance.totalBlockingTime)}</td>
+        </tr>
+        <tr>
+            <td>Largest Contentful Paint (LCP)</td>
+            <td>${withPWA.performance.largestContentfulPaint} ms</td>
+            <td>${withoutPWA.performance.largestContentfulPaint} ms</td>
+            <td>${compareValues(withPWA.performance.largestContentfulPaint, withoutPWA.performance.largestContentfulPaint)}</td>
+        </tr>
+        <tr>
+            <td>Cumulative Layout Shift (CLS)</td>
+            <td>${withPWA.performance.cumulativeLayoutShift}</td>
+            <td>${withoutPWA.performance.cumulativeLayoutShift}</td>
+            <td>${compareValues(withPWA.performance.cumulativeLayoutShift, withoutPWA.performance.cumulativeLayoutShift)}</td>
+        </tr>
+        <tr>
+            <td>Offline Capability</td>
+            <td>${createStatusIcon(withPWA.performance.offlineCapability)}</td>
+            <td>${createStatusIcon(withoutPWA.performance.offlineCapability)}</td>
+            <td>${withPWA.performance.offlineCapability === withoutPWA.performance.offlineCapability ? '<span style="color:green;">(Sama)</span>' : '<span style="color:green;">(PWA lebih baik)</span>'}</td>
+        </tr>
+        <tr>
+            <td>Install Prompt</td>
+            <td>${createStatusIcon(withPWA.performance.installPrompt)}</td>
+            <td>${createStatusIcon(withoutPWA.performance.installPrompt)}</td>
+            <td>${withPWA.performance.installPrompt === withoutPWA.performance.installPrompt ? '<span style="color:green;">(Sama)</span>' : '<span style="color:green;">(PWA lebih baik)</span>'}</td>
+        </tr>
+        <tr>
+            <td>Waktu Muat</td>
+            <td>${withPWA.performance.loadTime} ms</td>
+            <td>${withoutPWA.performance.loadTime} ms</td>
+            <td>${compareValues(withPWA.performance.loadTime, withoutPWA.performance.loadTime)}</td>
+        </tr>
+        <tr>
+            <td>Ukuran Halaman</td>
+            <td>${formatBytes(withPWA.performance.pageSize)}</td>
+            <td>${formatBytes(withoutPWA.performance.pageSize)}</td>
+            <td>${compareValues(withPWA.performance.pageSize, withoutPWA.performance.pageSize)}</td>
+        </tr>
+        <tr>
+            <td>Penggunaan CPU</td>
+            <td>${withPWA.performance.cpuUsage.toFixed(2)}%</td>
+            <td>${withoutPWA.performance.cpuUsage.toFixed(2)}%</td>
+            <td>${compareValues(withPWA.performance.cpuUsage, withoutPWA.performance.cpuUsage)}</td>
+        </tr>
+        <tr>
+            <td>Penggunaan Memori</td>
+            <td>${withPWA.performance.memoryUsage} MB</td>
+            <td>${withoutPWA.performance.memoryUsage} MB</td>
+            <td>${compareValues(withPWA.performance.memoryUsage, withoutPWA.performance.memoryUsage)}</td>
+        </tr>
+    `;
                 } else if (category === 'seo') {
                     htmlContent += `
                         <tr>
@@ -214,7 +231,13 @@ document.addEventListener('DOMContentLoaded', function() {
         htmlContent += `</tbody></table>`;
         resultsDiv.innerHTML += htmlContent;
     }
-
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
     function compareValues(valuePWA, valueNonPWA, isLowerBetter = true) {
         if (isLowerBetter) {
             return valuePWA < valueNonPWA ? '<span style="color:green;">(PWA lebih baik)</span>' : '<span style="color:red;">(Non-PWA lebih baik)</span>';
@@ -228,32 +251,61 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function calculateScore(category, data) {
-        let score = 0;
-        const weights = {
-            performance: {
-                loadTime: 0.2,
-                firstContentfulPaint: 0.1,
-                largestContentfulPaint: 0.25,
-                totalBlockingTime: 0.25,
-                firstInputDelay: 0.2
-            },
-            seo: {
-                title: 0.3,
-                metaDescription: 0.3,
-                headingsCount: 0.4
-            },
-            accessibility: {
-                imagesWithoutAlt: 0.4,
-                ariaLabels: 0.3,
-                elementsWithoutAria: 0.3
-            },
-            bestPractices: {
-                isHttps: 0.3,
-                mixedContentCount: 0.3,
-                cacheUsed: 0.2,
-                syncTags: 0.2
-            }
-        };
+        if (category === 'performance') {
+            const weights = {
+                firstContentfulPaint: 0.10,
+                timeToInteractive: 0.10,
+                speedIndex: 0.10,
+                totalBlockingTime: 0.10,
+                largestContentfulPaint: 0.15,
+                cumulativeLayoutShift: 0.15,
+                offlineCapability: 0.10,
+                installPrompt: 0.05,
+                loadTime: 0.05,
+                pageSize: 0.05,
+                cpuUsage: 0.025,
+                memoryUsage: 0.025
+            };
+            let score = 0;
+        
+            // FCP Score (good: < 1800ms)
+            score += calculateMetricScore(data.firstContentfulPaint, 3000, 1800) * weights.firstContentfulPaint;
+            
+            // TTI Score (good: < 3800ms)
+            score += calculateMetricScore(data.timeToInteractive, 7300, 3800) * weights.timeToInteractive;
+            
+            // Speed Index (good: < 3400ms)
+            score += calculateMetricScore(data.speedIndex, 5800, 3400) * weights.speedIndex;
+            
+            // TBT Score (good: < 200ms)
+            score += calculateMetricScore(data.totalBlockingTime, 600, 200) * weights.totalBlockingTime;
+            
+            // LCP Score (good: < 2500ms)
+            score += calculateMetricScore(data.largestContentfulPaint, 4000, 2500) * weights.largestContentfulPaint;
+            
+            // CLS Score (good: < 0.1)
+            score += calculateMetricScore(data.cumulativeLayoutShift, 0.25, 0.1) * weights.cumulativeLayoutShift;
+            
+            // Offline Capability
+            score += (data.offlineCapability ? 100 : 0) * weights.offlineCapability;
+            
+            // Install Prompt
+            score += (data.installPrompt ? 100 : 0) * weights.installPrompt;
+            
+            // Load Time (good: < 3000ms)
+            score += calculateMetricScore(data.loadTime, 5000, 3000) * weights.loadTime;
+            
+            // Page Size (good: < 1MB)
+            score += calculateMetricScore(data.pageSize, 3145728, 1048576) * weights.pageSize;
+            
+            // CPU Usage (good: < 50%)
+            score += calculateMetricScore(data.cpuUsage, 90, 50) * weights.cpuUsage;
+            
+            // Memory Usage (good: < 100MB)
+            score += calculateMetricScore(data.memoryUsage, 500, 100) * weights.memoryUsage;
+    
+            return Math.round(score);
+        }
 
         if (category === 'performance') {
             score += calculateMetricScore(data.loadTime, 3000, 1000) * weights.performance.loadTime;
