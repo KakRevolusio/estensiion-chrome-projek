@@ -1,3 +1,33 @@
+const weights = {
+    performance: {
+        loadTime: 0.15,
+        firstContentfulPaint: 0.15,
+        timeToInteractive: 0.15,
+        speedIndex: 0.10,
+        totalBlockingTime: 0.10,
+        largestContentfulPaint: 0.15,
+        cumulativeLayoutShift: 0.10,
+        offlineCapability: 0.05,
+        installPrompt: 0.05
+    },
+    seo: {
+        title: 0.4,
+        metaDescription: 0.4,
+        headingsCount: 0.2
+    },
+    accessibility: {
+        imagesWithoutAlt: 0.4,
+        ariaLabels: 0.3,
+        elementsWithoutAria: 0.3
+    },
+    bestPractices: {
+        isHttps: 0.3,
+        mixedContentCount: 0.3,
+        cacheUsed: 0.2,
+        syncTags: 0.2
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     const runTestButton = document.getElementById('runTest');
     const viewportSelect = document.getElementById('viewportSelect');
@@ -23,15 +53,32 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.action === 'showComparisonResults') {
+        if (request.action === 'testComplete') {
             hideLoading();
-            window.resultsWithPWA = request.dataWithPWA;
-            window.resultsWithoutPWA = request.dataWithoutPWA;
-            const selectedCategory = categorySelect.value;
-            const selectedViewport = viewportSelect.value;
-            showResultsByCategory(selectedCategory, window.resultsWithPWA, window.resultsWithoutPWA, selectedViewport);
+            hideError();
+            if (request.results.error) {
+                showError(request.results.error);
+                return;
+            }
+            window.resultsWithPWA = request.results.withPWA;
+            window.resultsWithoutPWA = request.results.withoutPWA;
+            showResultsByCategory(categorySelect.value, window.resultsWithPWA, window.resultsWithoutPWA, viewportSelect.value);
+        } else if (request.action === 'testError') {
+            showError(request.error);
         }
     });
+    
+    function compareFeatureStatus(pwaStat, nonPwaStat, featureName) {
+        if (pwaStat && !nonPwaStat) {
+            return `<span class="comparison-better">PWA menyediakan ${featureName}</span>`;
+        } else if (!pwaStat && !nonPwaStat) {
+            return `<span class="comparison-neutral">Tidak tersedia di keduanya</span>`;
+        } else if (pwaStat && nonPwaStat) {
+            return `<span class="comparison-neutral">Tersedia di keduanya</span>`;
+        } else {
+            return `<span class="comparison-worse">Tidak berfungsi dengan benar</span>`;
+        }
+    }
 
     function showLoading() {
         loadingElement.style.display = 'block';
@@ -115,18 +162,48 @@ document.addEventListener('DOMContentLoaded', function() {
             <td>${withoutPWA.performance.cumulativeLayoutShift}</td>
             <td>${compareValues(withPWA.performance.cumulativeLayoutShift, withoutPWA.performance.cumulativeLayoutShift)}</td>
         </tr>
-        <tr>
-            <td>Offline Capability</td>
-            <td>${createStatusIcon(withPWA.performance.offlineCapability)}</td>
-            <td>${createStatusIcon(withoutPWA.performance.offlineCapability)}</td>
-            <td>${withPWA.performance.offlineCapability === withoutPWA.performance.offlineCapability ? '<span style="color:green;">(Sama)</span>' : '<span style="color:green;">(PWA lebih baik)</span>'}</td>
-        </tr>
-        <tr>
-            <td>Install Prompt</td>
-            <td>${createStatusIcon(withPWA.performance.installPrompt)}</td>
-            <td>${createStatusIcon(withoutPWA.performance.installPrompt)}</td>
-            <td>${withPWA.performance.installPrompt === withoutPWA.performance.installPrompt ? '<span style="color:green;">(Sama)</span>' : '<span style="color:green;">(PWA lebih baik)</span>'}</td>
-        </tr>
+                <tr>
+                    <td>Offline Capability</td>
+                    <td>
+                        ${createStatusIcon(withPWA.performance.offlineCapability)}
+                        <br>
+                        <small class="text-gray-600">${withPWA.performance.offlineCapabilityMessage}</small>
+                    </td>
+                    <td>
+                        ${createStatusIcon(withoutPWA.performance.offlineCapability)}
+                        <br>
+                        <small class="text-gray-600">${withoutPWA.performance.offlineCapabilityMessage}</small>
+                    </td>
+                    <td>
+                        ${compareFeatureStatus(
+                            withPWA.performance.offlineCapability,
+                            withoutPWA.performance.offlineCapability,
+                            'Offline Capability'
+                        )}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Install Prompt</td>
+                    <td>
+                        ${createStatusIcon(withPWA.performance.installPrompt)}
+                        <br>
+                        <small class="text-gray-600">${withPWA.performance.installPromptMessage}</small>
+                    </td>
+                    <td>
+                        ${createStatusIcon(withoutPWA.performance.installPrompt)}
+                        <br>
+                        <small class="text-gray-600">${withoutPWA.performance.installPromptMessage}</small>
+                    </td>
+                    <td>
+                        ${compareFeatureStatus(
+                            withPWA.performance.installPrompt,
+                            withoutPWA.performance.installPrompt,
+                            'Install Prompt'
+                        )}
+                    </td>
+                </tr>
+                
         <tr>
             <td>Waktu Muat</td>
             <td>${withPWA.performance.loadTime} ms</td>
@@ -251,84 +328,76 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function calculateScore(category, data) {
-        if (category === 'performance') {
-            const weights = {
-                firstContentfulPaint: 0.10,
-                timeToInteractive: 0.10,
-                speedIndex: 0.10,
-                totalBlockingTime: 0.10,
-                largestContentfulPaint: 0.15,
-                cumulativeLayoutShift: 0.15,
-                offlineCapability: 0.10,
-                installPrompt: 0.05,
-                loadTime: 0.05,
-                pageSize: 0.05,
-                cpuUsage: 0.025,
-                memoryUsage: 0.025
-            };
-            let score = 0;
-        
-            // FCP Score (good: < 1800ms)
-            score += calculateMetricScore(data.firstContentfulPaint, 3000, 1800) * weights.firstContentfulPaint;
-            
-            // TTI Score (good: < 3800ms)
-            score += calculateMetricScore(data.timeToInteractive, 7300, 3800) * weights.timeToInteractive;
-            
-            // Speed Index (good: < 3400ms)
-            score += calculateMetricScore(data.speedIndex, 5800, 3400) * weights.speedIndex;
-            
-            // TBT Score (good: < 200ms)
-            score += calculateMetricScore(data.totalBlockingTime, 600, 200) * weights.totalBlockingTime;
-            
-            // LCP Score (good: < 2500ms)
-            score += calculateMetricScore(data.largestContentfulPaint, 4000, 2500) * weights.largestContentfulPaint;
-            
-            // CLS Score (good: < 0.1)
-            score += calculateMetricScore(data.cumulativeLayoutShift, 0.25, 0.1) * weights.cumulativeLayoutShift;
-            
-            // Offline Capability
-            score += (data.offlineCapability ? 100 : 0) * weights.offlineCapability;
-            
-            // Install Prompt
-            score += (data.installPrompt ? 100 : 0) * weights.installPrompt;
-            
-            // Load Time (good: < 3000ms)
-            score += calculateMetricScore(data.loadTime, 5000, 3000) * weights.loadTime;
-            
-            // Page Size (good: < 1MB)
-            score += calculateMetricScore(data.pageSize, 3145728, 1048576) * weights.pageSize;
-            
-            // CPU Usage (good: < 50%)
-            score += calculateMetricScore(data.cpuUsage, 90, 50) * weights.cpuUsage;
-            
-            // Memory Usage (good: < 100MB)
-            score += calculateMetricScore(data.memoryUsage, 500, 100) * weights.memoryUsage;
+        if (!data || !weights[category]) {
+            return 0;
+        }
     
-            return Math.round(score);
+        let score = 0;
+    
+        switch(category) {
+            case 'performance':
+                // FCP Score (good: < 1800ms)
+                score += calculateMetricScore(data.firstContentfulPaint, 3000, 1800) * 0.10;
+                
+                // TTI Score (good: < 3800ms)
+                score += calculateMetricScore(data.timeToInteractive, 7300, 3800) * 0.10;
+                
+                // Speed Index (good: < 3400ms)
+                score += calculateMetricScore(data.speedIndex, 5800, 3400) * 0.10;
+                
+                // TBT Score (good: < 200ms)
+                score += calculateMetricScore(data.totalBlockingTime, 600, 200) * 0.10;
+                
+                // LCP Score (good: < 2500ms)
+                score += calculateMetricScore(data.largestContentfulPaint, 4000, 2500) * 0.15;
+                
+                // CLS Score (good: < 0.1)
+                score += calculateMetricScore(data.cumulativeLayoutShift, 0.25, 0.1) * 0.15;
+                
+                // Offline Capability & Install Prompt
+                score += (data.offlineCapability ? 100 : 0) * 0.10;
+                score += (data.installPrompt ? 100 : 0) * 0.05;
+                
+                // Load Time & Resource Usage
+                score += calculateMetricScore(data.loadTime, 5000, 3000) * 0.05;
+                score += calculateMetricScore(data.pageSize, 3145728, 1048576) * 0.05;
+                score += calculateMetricScore(data.cpuUsage, 90, 50) * 0.025;
+                score += calculateMetricScore(data.memoryUsage, 500, 100) * 0.025;
+                break;
+    
+            case 'seo':
+                score += (data.title?.length > 0 ? 100 : 0) * weights.seo.title;
+                score += (data.metaDescription?.length > 0 ? 100 : 0) * weights.seo.metaDescription;
+                score += calculateMetricScore(data.headingsCount || 0, 0, 6, true) * weights.seo.headingsCount;
+                break;
+    
+            case 'accessibility':
+                score += calculateMetricScore(data.imagesWithoutAlt || 0, 10, 0) * weights.accessibility.imagesWithoutAlt;
+                score += calculateMetricScore(data.ariaLabels || 0, 0, 10, true) * weights.accessibility.ariaLabels;
+                score += calculateMetricScore(data.elementsWithoutAria || 0, 10, 0) * weights.accessibility.elementsWithoutAria;
+                break;
+    
+            case 'bestPractices':
+                score += (data.isHttps ? 100 : 0) * weights.bestPractices.isHttps;
+                score += calculateMetricScore(data.mixedContentCount || 0, 10, 0) * weights.bestPractices.mixedContentCount;
+                score += (data.cache?.cacheUsed ? 100 : 0) * weights.bestPractices.cacheUsed;
+                score += (data.cache?.syncTags ? 100 : 0) * weights.bestPractices.syncTags;
+                break;
         }
-
-        if (category === 'performance') {
-            score += calculateMetricScore(data.loadTime, 3000, 1000) * weights.performance.loadTime;
-            score += calculateMetricScore(data.firstContentfulPaint, 3000, 1000) * weights.performance.firstContentfulPaint;
-            score += calculateMetricScore(data.largestContentfulPaint, 4000, 2000) * weights.performance.largestContentfulPaint;
-            score += calculateMetricScore(data.totalBlockingTime, 600, 200) * weights.performance.totalBlockingTime;
-            score += calculateMetricScore(data.firstInputDelay, 300, 100) * weights.performance.firstInputDelay;
-        } else if (category === 'seo') {
-            score += (data.title.length > 0 ? 100 : 0) * weights.seo.title;
-            score += (data.metaDescription.length > 0 ? 100 : 0) * weights.seo.metaDescription;
-            score += calculateMetricScore(data.headingsCount, 0, 6, true) * weights.seo.headingsCount;
-        } else if (category === 'accessibility') {
-            score += calculateMetricScore(data.imagesWithoutAlt, 10, 0) * weights.accessibility.imagesWithoutAlt;
-            score += calculateMetricScore(data.ariaLabels, 0, 10, true) * weights.accessibility.ariaLabels;
-            score += calculateMetricScore(data.elementsWithoutAria, 10, 0) * weights.accessibility.elementsWithoutAria;
-        } else if (category === 'bestPractices') {
-            score += (data.isHttps ? 100 : 0) * weights.bestPractices.isHttps;
-            score += calculateMetricScore(data.mixedContentCount, 10, 0) * weights.bestPractices.mixedContentCount;
-            score += (data.cache.cacheUsed ? 100 : 0) * weights.bestPractices.cacheUsed;
-            score += (data.cache.syncTags ? 100 : 0) * weights.bestPractices.syncTags;
-        }
-
+    
         return Math.round(score);
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('error');
+        errorDiv.querySelector('p').textContent = message;
+        errorDiv.style.display = 'block';
+        hideLoading();
+    }
+    
+    function hideError() {
+        const errorDiv = document.getElementById('error');
+        errorDiv.style.display = 'none';
     }
 
     function calculateMetricScore(value, worstValue, bestValue, higherIsBetter = false) {
