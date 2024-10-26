@@ -7,7 +7,8 @@
     "activeTab",
     "scripting",
     "storage",
-    "tabs"
+    "tabs",
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -35,10 +36,15 @@
     "512": "images/icons/icon-512x512.png"
   },
   "web_accessible_resources": [{
-    "resources": ["images/*"],
+    "resources": [
+      "images/*",
+      "content.js",
+      "sw.js",
+      "manifest.json"
+    ],
     "matches": ["<all_urls>"]
   }],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }
 }
