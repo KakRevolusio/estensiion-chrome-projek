@@ -5,13 +5,11 @@
   "description": "Check and compare the performance of PWA and non-PWA websites across different viewports",
   "permissions": [
     "activeTab",
-    "scripting",
-    "storage",
-    "tabs",
-    "webNavigation"
+    "scripting"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js",
